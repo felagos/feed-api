@@ -101,4 +101,20 @@ public class FeedService {
         log.info("Usuario {} ahora sigue a usuario {}", followerId, followeeId);
     }
 
+    public void unfollowUser(Long followerId, Long followeeId) {
+        if (followerId.equals(followeeId)) {
+            throw new IllegalArgumentException("No puedes dejar de seguirte a ti mismo");
+        }
+
+        if (!followRepository.existsByFollowerIdAndFolloweeId(followerId, followeeId)) {
+            throw new IllegalArgumentException("No sigues a este usuario");
+        }
+
+        followRepository.deleteByFollowerIdAndFolloweeId(followerId, followeeId);
+
+        feedItemRepository.deleteByUserIdAndAuthorId(followerId, followeeId);
+
+        log.info("Usuario {} ya no sigue a usuario {}", followerId, followeeId);
+    }
+
 }

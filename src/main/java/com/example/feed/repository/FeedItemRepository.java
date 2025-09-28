@@ -14,4 +14,5 @@ public interface FeedItemRepository extends JpaRepository<FeedItem, Long> {
     Page<FeedItem> findFeedByUserId(@Param("userId") Long userId, Pageable pageable);
     
     void deleteByPostId(Long postId);
+    void deleteByUserIdAndAuthorId(Long userId, Long authorId);
 }

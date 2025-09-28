@@ -50,4 +50,13 @@ public class FeedController {
         feedService.followUser(followerId, followeeId);
         return ResponseEntity.ok().build();
     }
+    
+    @DeleteMapping("/follow/{followeeId}")
+    public ResponseEntity<Void> unfollowUser(
+            @RequestHeader("User-Id") Long followerId,
+            @PathVariable Long followeeId) {
+        
+        feedService.unfollowUser(followerId, followeeId);
+        return ResponseEntity.ok().build();
+    }
 }
