@@ -2,11 +2,11 @@ package com.example.feed.service;
 
 import com.example.feed.dto.CreatePostRequest;
 import com.example.feed.dto.FeedItemDTO;
-import com.example.feed.entity.FeedItem;
 import com.example.feed.entity.Follow;
 import com.example.feed.entity.Post;
 import com.example.feed.event.PostCreatedEvent;
 import com.example.feed.event.UserFollowedEvent;
+import com.example.feed.model.FeedItemWithPost;
 import com.example.feed.repository.FeedItemRepository;
 import com.example.feed.repository.FollowRepository;
 import com.example.feed.repository.PostRepository;
@@ -63,19 +63,14 @@ public class FeedService {
 
     public Page<FeedItemDTO> getUserFeed(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<FeedItem> feedItems = feedItemRepository.findFeedByUserId(userId, pageable);
-
-        return feedItems.map(item -> {
-            Post post = postRepository.findById(item.getPostId())
-                    .orElseThrow(() -> new RuntimeException("Post no encontrado"));
-
-            return new FeedItemDTO(
-                    item.getPostId(),
-                    item.getAuthorId(),
-                    post.getContent(),
-                    item.getCreatedAt(),
-                    item.getIsRead());
-        });
+        Page<FeedItemWithPost> feedItemsWithPosts = feedItemRepository.findFeedWithPostsByUserId(userId, pageable);
+        
+        return feedItemsWithPosts.map(item -> new FeedItemDTO(
+                item.getPostId(),
+                item.getAuthorId(),
+                item.getPostContent(),
+                item.getCreatedAt(),
+                item.getIsRead()));
     }
 
     public void followUser(Long followerId, Long followeeId) {

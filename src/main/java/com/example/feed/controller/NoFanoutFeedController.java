@@ -13,57 +13,48 @@ import java.util.Map;
 @RequestMapping("/api/pull-feed")
 @Validated
 public class NoFanoutFeedController {
-    
+
     private final NoFanoutFeedService noFanoutFeedService;
-    
+
     public NoFanoutFeedController(NoFanoutFeedService noFanoutFeedService) {
         this.noFanoutFeedService = noFanoutFeedService;
     }
-    
+
     @GetMapping("/timeline/{userId}")
     public ResponseEntity<Page<FeedItemDTO>> getUserFeedPullModel(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
+
         long startTime = System.currentTimeMillis();
-        
+
         var stats = noFanoutFeedService.getComplexityStats(userId);
-        
+
         Page<FeedItemDTO> feed = noFanoutFeedService.getUserFeedPullModel(userId, page, size);
-        
+
         long totalTime = System.currentTimeMillis() - startTime;
-        
-        return ResponseEntity.ok()
-                .header("X-Response-Time-Ms", String.valueOf(totalTime))
-                .header("X-Feed-Model", "pull")
-                .header("X-Users-Following", String.valueOf(stats.usersFollowing()))
-                .header("X-Estimated-Posts-Scanned", String.valueOf(stats.estimatedPostsToScan()))
-                .header("X-Time-Complexity", stats.timeComplexity())
-                .body(feed);
+
+        return ResponseEntity.ok().body(feed);
     }
-    
+
     @GetMapping("/stats/{userId}")
     public ResponseEntity<Map<String, Object>> getFeedComplexityStats(@PathVariable Long userId) {
         long startTime = System.currentTimeMillis();
-        
+
         var stats = noFanoutFeedService.getComplexityStats(userId);
         long analysisTime = System.currentTimeMillis() - startTime;
-        
+
         Map<String, Object> response = Map.of(
                 "userId", userId,
                 "usersFollowing", stats.usersFollowing(),
                 "estimatedPostsToScan", stats.estimatedPostsToScan(),
                 "timeComplexity", stats.timeComplexity(),
                 "analysisTimeMs", analysisTime,
-                "recommendations", getPerformanceRecommendations(stats)
-        );
-        
-        return ResponseEntity.ok()
-                .header("X-Analysis-Time-Ms", String.valueOf(analysisTime))
-                .body(response);
+                "recommendations", getPerformanceRecommendations(stats));
+
+        return ResponseEntity.ok().body(response);
     }
-    
+
     @GetMapping("/comparison")
     public ResponseEntity<Map<String, Object>> getModelComparison() {
         Map<String, Object> comparison = Map.of(
@@ -74,8 +65,7 @@ public class NoFanoutFeedController {
                         "performance", "Fast (~1-5ms)",
                         "scalability", "Excellent",
                         "storage", "Higher (duplicated data)",
-                        "consistency", "Eventual"
-                ),
+                        "consistency", "Eventual"),
                 "pullModel", Map.of(
                         "endpoint", "/api/pull-feed/timeline/{userId}",
                         "description", "Real-time feed with JOIN queries",
@@ -83,18 +73,16 @@ public class NoFanoutFeedController {
                         "performance", "Slow (~50-500ms+)",
                         "scalability", "Limited",
                         "storage", "Lower (no duplication)",
-                        "consistency", "Immediate"
-                ),
-                "recommendation", "Use push model (fan-out) for production social media applications"
-        );
-        
+                        "consistency", "Immediate"),
+                "recommendation", "Use push model (fan-out) for production social media applications");
+
         return ResponseEntity.ok(comparison);
     }
-    
+
     private Map<String, Object> getPerformanceRecommendations(NoFanoutFeedService.FeedComplexityStats stats) {
         String recommendation;
         String reason;
-        
+
         if (stats.usersFollowing() < 50) {
             recommendation = "PULL model acceptable";
             reason = "Low number of follows, performance impact minimal";
@@ -105,12 +93,11 @@ public class NoFanoutFeedController {
             recommendation = "PUSH model strongly recommended";
             reason = "High follows count, pull model will be very slow";
         }
-        
+
         return Map.of(
                 "recommendation", recommendation,
                 "reason", reason,
-                "estimatedResponseTime", stats.usersFollowing() < 50 ? "< 50ms" : 
-                                      stats.usersFollowing() < 200 ? "50-200ms" : "> 200ms"
-        );
+                "estimatedResponseTime",
+                stats.usersFollowing() < 50 ? "< 50ms" : stats.usersFollowing() < 200 ? "50-200ms" : "> 200ms");
     }
 }
