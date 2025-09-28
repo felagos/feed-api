@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: feed-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: feed_db
+      POSTGRES_USER: feed_user
+      POSTGRES_PASSWORD: feed_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - feed-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feed_user -d feed_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  feed-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: feed-api
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/feed_db
+      SPRING_DATASOURCE_USERNAME: feed_user
+      SPRING_DATASOURCE_PASSWORD: feed_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - feed-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  feed-network:
+    driver: bridge
