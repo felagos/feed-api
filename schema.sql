@@ -8,8 +8,8 @@ CREATE TABLE users (
     full_name VARCHAR(100) NOT NULL,
     bio TEXT,
     profile_image_url VARCHAR(500),
-    is_verified BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -17,6 +17,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE INDEX idx_users_last_login ON users(last_login_at);
 
 CREATE TABLE posts (
     id BIGSERIAL PRIMARY KEY,
@@ -270,12 +271,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-INSERT INTO users (username, email, full_name, bio) VALUES
-('john_doe', 'john@example.com', 'John Doe', 'Tech enthusiast and coffee lover'),
-('jane_smith', 'jane@example.com', 'Jane Smith', 'Designer by day, photographer by night'),
-('tech_guru', 'guru@example.com', 'Tech Guru', 'Sharing the latest in technology'),
-('foodie_mike', 'mike@example.com', 'Mike Johnson', 'Food blogger and chef'),
-('travel_sarah', 'sarah@example.com', 'Sarah Wilson', 'World traveler and storyteller');
+INSERT INTO users (username, email, full_name, bio, last_login_at) VALUES
+('john_doe', 'john@example.com', 'John Doe', 'Tech enthusiast and coffee lover', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+('jane_smith', 'jane@example.com', 'Jane Smith', 'Designer by day, photographer by night', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+('tech_guru', 'guru@example.com', 'Tech Guru', 'Sharing the latest in technology', CURRENT_TIMESTAMP - INTERVAL '5 days'),
+('foodie_mike', 'mike@example.com', 'Mike Johnson', 'Food blogger and chef', CURRENT_TIMESTAMP - INTERVAL '15 days'),
+('travel_sarah', 'sarah@example.com', 'Sarah Wilson', 'World traveler and storyteller', CURRENT_TIMESTAMP - INTERVAL '3 days');
 
 INSERT INTO follows (follower_id, followee_id) VALUES
 (1, 2), (1, 3), (1, 4),
