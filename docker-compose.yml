@@ -23,6 +23,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: feed-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - feed-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   feed-api:
     build:
       context: .
@@ -30,14 +44,17 @@ services:
     container_name: feed-api
     restart: unless-stopped
     environment:
-      SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/feed_db
       SPRING_DATASOURCE_USERNAME: feed_user
       SPRING_DATASOURCE_PASSWORD: feed_password
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
     ports:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - feed-network

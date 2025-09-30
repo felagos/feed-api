@@ -7,11 +7,13 @@ import com.example.feed.entity.Post;
 import com.example.feed.event.PostCreatedEvent;
 import com.example.feed.event.UserFollowedEvent;
 import com.example.feed.model.FeedItemWithPost;
-import com.example.feed.repository.FeedItemRepository;
+import com.example.feed.repository.FeedCacheRepository;
 import com.example.feed.repository.FollowRepository;
-import com.example.feed.repository.PostRepository;
+import com.example.feed.repository.PostCacheRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,27 +29,28 @@ public class FeedService {
 
     private static final Logger log = LoggerFactory.getLogger(FeedService.class);
 
-    private final PostRepository postRepository;
-    private final FeedItemRepository feedItemRepository;
+    private final PostCacheRepository postCacheRepository;
+    private final FeedCacheRepository feedCacheRepository;
     private final FollowRepository followRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    public FeedService(PostRepository postRepository,
-            FeedItemRepository feedItemRepository,
+    public FeedService(PostCacheRepository postCacheRepository,
+            FeedCacheRepository feedCacheRepository,
             FollowRepository followRepository,
             ApplicationEventPublisher eventPublisher) {
-        this.postRepository = postRepository;
-        this.feedItemRepository = feedItemRepository;
+        this.postCacheRepository = postCacheRepository;
+        this.feedCacheRepository = feedCacheRepository;
         this.followRepository = followRepository;
         this.eventPublisher = eventPublisher;
     }
 
+    @CacheEvict(value = {"userFeeds", "feedItems"}, allEntries = true)
     public Post createPost(Long userId, CreatePostRequest request) {
         Post post = new Post();
         post.setUserId(userId);
         post.setContent(request.getContent());
 
-        Post savedPost = postRepository.save(post);
+        Post savedPost = postCacheRepository.save(post);
 
         PostCreatedEvent event = new PostCreatedEvent(
                 savedPost.getId(),
@@ -61,9 +64,17 @@ public class FeedService {
         return savedPost;
     }
 
+    public Post getPostById(Long postId) {
+        return postCacheRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post no encontrado con ID: " + postId));
+    }
+
+    @Cacheable(value = "userFeeds", key = "#userId + '_' + #page + '_' + #size")
     public Page<FeedItemDTO> getUserFeed(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<FeedItemWithPost> feedItemsWithPosts = feedItemRepository.findFeedWithPostsByUserId(userId, pageable);
+        Page<FeedItemWithPost> feedItemsWithPosts = feedCacheRepository.findFeedWithPostsByUserId(userId, pageable);
+        
+        log.info("Recuperando feed para usuario: {} desde caché o base de datos", userId);
         
         return feedItemsWithPosts.map(item -> new FeedItemDTO(
                 item.getPostId(),
@@ -73,6 +84,7 @@ public class FeedService {
                 item.getIsRead()));
     }
 
+    @CacheEvict(value = {"userFeeds", "feedItems"}, allEntries = true)
     public void followUser(Long followerId, Long followeeId) {
         if (followerId.equals(followeeId)) {
             throw new IllegalArgumentException("No puedes seguirte a ti mismo");
@@ -96,6 +108,7 @@ public class FeedService {
         log.info("Usuario {} ahora sigue a usuario {}", followerId, followeeId);
     }
 
+    @CacheEvict(value = {"userFeeds", "feedItems"}, allEntries = true)
     public void unfollowUser(Long followerId, Long followeeId) {
         if (followerId.equals(followeeId)) {
             throw new IllegalArgumentException("No puedes dejar de seguirte a ti mismo");
@@ -107,7 +120,7 @@ public class FeedService {
 
         followRepository.deleteByFollowerIdAndFolloweeId(followerId, followeeId);
 
-        feedItemRepository.deleteByUserIdAndAuthorId(followerId, followeeId);
+        feedCacheRepository.deleteByUserIdAndAuthorId(followerId, followeeId);
 
         log.info("Usuario {} ya no sigue a usuario {}", followerId, followeeId);
     }

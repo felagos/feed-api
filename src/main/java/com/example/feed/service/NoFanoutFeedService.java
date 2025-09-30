@@ -6,6 +6,7 @@ import com.example.feed.repository.FollowRepository;
 import com.example.feed.repository.PostRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -29,9 +30,10 @@ public class NoFanoutFeedService {
         this.followRepository = followRepository;
     }
 
+    @Cacheable(value = "userFeeds", key = "'noFanout_' + #userId + '_' + #page + '_' + #size")
     public Page<FeedItemDTO> getUserFeedPullModel(Long userId, int page, int size) {
         long startTime = System.currentTimeMillis();
-        log.info("Iniciando consulta de feed sin fan-out para usuario {}", userId);
+        log.info("Iniciando consulta de feed sin fan-out para usuario {} - verificando caché primero", userId);
 
         Pageable pageable = PageRequest.of(page, size);
 
@@ -60,11 +62,14 @@ public class NoFanoutFeedService {
         return new PageImpl<>(feedItems, pageable, totalElements);
     }
 
+    @Cacheable(value = "feedItems", key = "'complexity_' + #userId")
     public FeedComplexityStats getComplexityStats(Long userId) {
         long followingCount = followRepository.countByFollowerId(userId);
 
         long avgPostsPerUser = 50;
         long estimatedPostsToScan = followingCount * avgPostsPerUser;
+
+        log.info("Calculando estadísticas de complejidad para usuario {} - recuperado desde caché o calculado", userId);
 
         return new FeedComplexityStats(
                 followingCount,
