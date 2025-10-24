@@ -6,11 +6,11 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-@Configuration
-@EnableAsync
+// @Configuration - DISABLED: No longer needed with Kafka
+// @EnableAsync - Kafka handles concurrency through consumer groups and partitions
 public class AsyncConfig {
     
-    @Bean(name = "fanoutTaskExecutor")
+    // @Bean(name = "fanoutTaskExecutor")
     public TaskExecutor fanoutTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5);

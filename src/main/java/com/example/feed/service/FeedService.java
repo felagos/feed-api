@@ -6,6 +6,7 @@ import com.example.feed.entity.Follow;
 import com.example.feed.entity.Post;
 import com.example.feed.event.PostCreatedEvent;
 import com.example.feed.event.UserFollowedEvent;
+import com.example.feed.kafka.KafkaProducerService;
 import com.example.feed.model.FeedItemWithPost;
 import com.example.feed.repository.FeedCacheRepository;
 import com.example.feed.repository.FollowRepository;
@@ -14,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,16 +32,16 @@ public class FeedService {
     private final PostCacheRepository postCacheRepository;
     private final FeedCacheRepository feedCacheRepository;
     private final FollowRepository followRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final KafkaProducerService kafkaProducerService;
 
     public FeedService(PostCacheRepository postCacheRepository,
             FeedCacheRepository feedCacheRepository,
             FollowRepository followRepository,
-            ApplicationEventPublisher eventPublisher) {
+            KafkaProducerService kafkaProducerService) {
         this.postCacheRepository = postCacheRepository;
         this.feedCacheRepository = feedCacheRepository;
         this.followRepository = followRepository;
-        this.eventPublisher = eventPublisher;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     @CacheEvict(value = {"userFeeds", "feedItems"}, allEntries = true)
@@ -58,9 +58,9 @@ public class FeedService {
                 savedPost.getContent(),
                 savedPost.getCreatedAt());
 
-        eventPublisher.publishEvent(event);
+        kafkaProducerService.sendPostCreatedEvent(event);
 
-        log.info("Post creado con ID: {} por usuario: {}", savedPost.getId(), userId);
+        log.info("Post creado con ID: {} por usuario: {} - Evento enviado a Kafka", savedPost.getId(), userId);
         return savedPost;
     }
 
@@ -103,9 +103,10 @@ public class FeedService {
                 followerId,
                 followeeId,
                 LocalDateTime.now());
-        eventPublisher.publishEvent(userFollowedEvent);
+        
+        kafkaProducerService.sendUserFollowedEvent(userFollowedEvent);
 
-        log.info("Usuario {} ahora sigue a usuario {}", followerId, followeeId);
+        log.info("Usuario {} ahora sigue a usuario {} - Evento enviado a Kafka", followerId, followeeId);
     }
 
     @CacheEvict(value = {"userFeeds", "feedItems"}, allEntries = true)

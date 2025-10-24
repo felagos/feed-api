@@ -19,7 +19,7 @@ else
 	RM_CMD = rm -rf
 endif
 
-.PHONY: help build up down restart logs clean status test db-connect db-logs app-logs health rebuild
+.PHONY: help build up down restart logs clean status test db-connect db-logs app-logs health rebuild kafka-logs kafka-topics kafka-consumers
 
 # Default target
 help: ## Show this help message
@@ -37,8 +37,15 @@ help: ## Show this help message
 	@$(ECHO_CMD) "  logs                 Show logs for all services"
 	@$(ECHO_CMD) "  app-logs             Show logs for the application only"
 	@$(ECHO_CMD) "  db-logs              Show logs for PostgreSQL only"
+	@$(ECHO_CMD) "  kafka-logs           Show logs for Kafka"
 	@$(ECHO_CMD) "  status               Show status of all services"
 	@$(ECHO_CMD) "  health               Check application health endpoint"
+	@$(ECHO_CMD) ""
+	@$(ECHO_CMD) "Kafka Operations:"
+	@$(ECHO_CMD) "  kafka-topics         List all Kafka topics"
+	@$(ECHO_CMD) "  kafka-consumers      Show consumer group details"
+	@$(ECHO_CMD) "  kafka-read-posts     Read messages from post-created-events topic"
+	@$(ECHO_CMD) "  kafka-read-follows   Read messages from user-followed-events topic"
 	@$(ECHO_CMD) ""
 	@$(ECHO_CMD) "Development Operations:"
 	@$(ECHO_CMD) "  dev                  Start development environment (build + up + logs)"
@@ -83,6 +90,9 @@ app-logs: ## Show logs for the application only
 db-logs: ## Show logs for PostgreSQL only
 	docker-compose logs -f postgres
 
+kafka-logs: ## Show logs for Kafka
+	docker-compose logs -f kafka
+
 status: ## Show status of all services
 	docker-compose ps
 
@@ -125,3 +135,16 @@ gradle-build: ## Build application using Gradle (without Docker)
 
 gradle-clean: ## Clean Gradle build
 	$(GRADLE_CMD) clean
+
+# Kafka Operations
+kafka-topics: ## List all Kafka topics
+	docker exec -it feed-kafka kafka-topics --bootstrap-server localhost:9092 --list
+
+kafka-consumers: ## Show consumer group details
+	docker exec -it feed-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --group feed-fanout-group --describe
+
+kafka-read-posts: ## Read messages from post-created-events topic
+	docker exec -it feed-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic post-created-events --from-beginning --max-messages 10
+
+kafka-read-follows: ## Read messages from user-followed-events topic
+	docker exec -it feed-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic user-followed-events --from-beginning --max-messages 10
